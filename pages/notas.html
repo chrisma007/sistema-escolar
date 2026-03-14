@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+
+<meta charset="UTF-8">
+<title>Registro de Notas</title>
+
+<link rel="stylesheet" href="../styles.css">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<style>
+
+input{
+padding:8px;
+margin:5px;
+border:1px solid #ccc;
+border-radius:5px;
+}
+
+button{
+padding:8px 15px;
+background:#2c5d8a;
+color:white;
+border:none;
+border-radius:5px;
+cursor:pointer;
+}
+
+button:hover{
+background:#1e3a5f;
+}
+
+table{
+width:100%;
+border-collapse:collapse;
+background:white;
+margin-top:20px;
+}
+
+th,td{
+padding:12px;
+border-bottom:1px solid #ddd;
+text-align:center;
+}
+
+.infoAlumno{
+background:white;
+padding:15px;
+margin-top:20px;
+border-radius:8px;
+}
+
+.promedio{
+margin-top:20px;
+font-size:18px;
+font-weight:bold;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<aside class="sidebar">
+
+<h2>Sistema Escolar</h2>
+
+<ul>
+<li><a href="../index.html">Dashboard</a></li>
+<li><a href="alumnos.html">Alumnos</a></li>
+<li><a href="notas.html">Notas</a></li>
+<li><a href="asistencia.html">Asistencia</a></li>
+</ul>
+
+</aside>
+
+<div class="main">
+
+<header class="header">
+<h3>Registro de Notas</h3>
+</header>
+
+<section class="table-section">
+
+<!-- AGREGAR ALUMNO -->
+
+<h3>Agregar alumno</h3>
+
+<input type="number" id="nuevoID" placeholder="ID">
+<input type="text" id="nuevoNombre" placeholder="Nombre">
+<input type="text" id="nuevaSeccion" placeholder="Sección">
+
+<button onclick="agregarAlumno()">Agregar alumno</button>
+
+<br><br>
+
+<!-- BUSCAR -->
+
+<h3>Buscar alumno por ID</h3>
+
+<input type="number" id="buscarID" placeholder="ID del alumno">
+
+<button onclick="buscarAlumno()">Buscar</button>
+
+<!-- INFO ALUMNO -->
+
+<div id="infoAlumno" class="infoAlumno" style="display:none">
+
+<p><b>ID:</b> <span id="idAlumno"></span></p>
+<p><b>Nombre:</b> <span id="nombreAlumno"></span></p>
+<p><b>Sección:</b> <span id="seccionAlumno"></span></p>
+
+</div>
+
+<!-- AGREGAR EVALUACION -->
+
+<div id="formEval" style="display:none">
+
+<h3>Agregar Evaluación</h3>
+
+<input type="text" id="nombreEval" placeholder="Evaluación">
+<input type="number" id="notaEval" placeholder="Nota (0-20)">
+
+<button onclick="agregarEvaluacion()">Agregar</button>
+
+</div>
+
+<!-- TABLA NOTAS -->
+
+<table id="tablaNotas" style="display:none">
+
+<tr>
+<th>Evaluación</th>
+<th>Nota</th>
+<th>Editar</th>
+</tr>
+
+</table>
+
+<div class="promedio" id="promedio"></div>
+
+<br>
+
+<button onclick="mostrarBoletin()">Ver Boletín</button>
+
+<button onclick="exportarPDF()">Exportar PDF</button>
+
+<div id="boletin"></div>
+
+</section>
+
+</div>
+
+</div>
+
+<script>
+
+let alumnos = JSON.parse(localStorage.getItem("alumnos")) || {}
+
+function guardar(){
+localStorage.setItem("alumnos",JSON.stringify(alumnos))
+}
+
+function agregarAlumno(){
+
+let id = document.getElementById("nuevoID").value
+let nombre = document.getElementById("nuevoNombre").value
+let seccion = document.getElementById("nuevaSeccion").value
+
+if(!id || !nombre || !seccion){
+alert("Complete todos los campos")
+return
+}
+
+if(alumnos[id]){
+alert("Ese ID ya existe")
+return
+}
+
+alumnos[id] = {
+nombre:nombre,
+seccion:seccion,
+notas:[]
+}
+
+guardar()
+
+document.getElementById("nuevoID").value=""
+document.getElementById("nuevoNombre").value=""
+document.getElementById("nuevaSeccion").value=""
+
+alert("Alumno agregado correctamente")
+
+}
+
+function buscarAlumno(){
+
+let id=document.getElementById("buscarID").value
+let alumno=alumnos[id]
+
+if(!alumno){
+alert("Alumno no encontrado")
+return
+}
+
+document.getElementById("infoAlumno").style.display="block"
+document.getElementById("tablaNotas").style.display="table"
+document.getElementById("formEval").style.display="block"
+
+document.getElementById("idAlumno").textContent=id
+document.getElementById("nombreAlumno").textContent=alumno.nombre
+document.getElementById("seccionAlumno").textContent=alumno.seccion
+
+mostrarNotas(alumno)
+
+}
+
+function mostrarNotas(alumno){
+
+let tabla=document.getElementById("tablaNotas")
+
+tabla.innerHTML=`
+<tr>
+<th>Evaluación</th>
+<th>Nota</th>
+<th>Editar</th>
+</tr>
+`
+
+let suma=0
+
+alumno.notas.forEach((n,i)=>{
+
+suma+=n.nota
+
+tabla.innerHTML+=`
+<tr>
+<td>${n.evaluacion}</td>
+<td>${n.nota}</td>
+<td><button onclick="editarNota(${i})">Editar</button></td>
+</tr>
+`
+
+})
+
+let promedio=alumno.notas.length ? suma/alumno.notas.length : 0
+
+document.getElementById("promedio").textContent="Promedio: "+promedio.toFixed(2)
+
+}
+
+function agregarEvaluacion(){
+
+let id=document.getElementById("idAlumno").textContent
+let alumno=alumnos[id]
+
+let evaluacion=document.getElementById("nombreEval").value
+let nota=parseFloat(document.getElementById("notaEval").value)
+
+if(nota<0 || nota>20){
+alert("La nota debe ser entre 0 y 20")
+return
+}
+
+alumno.notas.push({
+evaluacion:evaluacion,
+nota:nota
+})
+
+guardar()
+
+mostrarNotas(alumno)
+
+}
+
+function editarNota(index){
+
+let id=document.getElementById("idAlumno").textContent
+let alumno=alumnos[id]
+
+let nueva=prompt("Nueva nota (0-20)",alumno.notas[index].nota)
+
+if(nueva<0 || nueva>20){
+alert("Nota inválida")
+return
+}
+
+alumno.notas[index].nota=parseFloat(nueva)
+
+guardar()
+
+mostrarNotas(alumno)
+
+}
+
+function mostrarBoletin(){
+
+let id=document.getElementById("idAlumno").textContent
+let alumno=alumnos[id]
+
+let html="<h3>Boletín</h3>"
+
+html+="Alumno: "+alumno.nombre+"<br>"
+html+="Sección: "+alumno.seccion+"<br><br>"
+
+alumno.notas.forEach(n=>{
+html+=n.evaluacion+" : "+n.nota+"<br>"
+})
+
+document.getElementById("boletin").innerHTML=html
+
+}
+
+function exportarPDF(){
+
+let id=document.getElementById("idAlumno").textContent
+let alumno=alumnos[id]
+
+const { jsPDF } = window.jspdf
+
+let doc = new jsPDF()
+
+doc.text("Boletín de Notas",20,20)
+doc.text("Alumno: "+alumno.nombre,20,40)
+doc.text("Sección: "+alumno.seccion,20,50)
+
+let y=70
+
+alumno.notas.forEach(n=>{
+doc.text(n.evaluacion+" : "+n.nota,20,y)
+y+=10
+})
+
+doc.save("boletin_"+alumno.nombre+".pdf")
+
+}
+
+</script>
+
+</body>
+</html>
